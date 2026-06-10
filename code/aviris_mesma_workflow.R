@@ -12,6 +12,9 @@ library(luna)
 aviris_tif <- "/absolute/path/to/aviris_ng_cube.tif"
 aoi_geojson <- "/absolute/path/to/aoi.geojson"
 points_file <- "/absolute/path/to/sample_points.geojson" # points for extraction
+out_indices_tif <- "/absolute/path/to/output/vegetation_indices.tif"
+out_points_csv <- "/absolute/path/to/output/point_extractions.csv"
+out_mesma_rds <- "/absolute/path/to/output/mesma_result.rds"
 
 # Example AVIRIS-NG band choices. Update these to your wavelength-to-band mapping
 # from the AVIRIS-NG metadata/header for your specific scene.
@@ -19,6 +22,7 @@ band_nir <- 50L
 band_red <- 30L
 band_green <- 20L
 band_swir <- 100L
+band_blue <- NA_integer_ # set to a valid band index to calculate standard EVI
 
 # Endmember names and spectra should be updated for your application.
 # Here we extract spectra from sample points and use them as a simple example.
@@ -45,17 +49,19 @@ names(swir) <- "swir"
 ndvi <- (nir - red) / (nir + red)
 names(ndvi) <- "NDVI"
 
-# EVI = 2.5 * (NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1)
-# If you have a blue band, substitute it below.
-# Using green here is demonstration-only and not scientifically equivalent to blue.
-evi <- 2.5 * (nir - red) / (nir + 6 * red - 7.5 * green + 1)
-names(evi) <- "EVI_demo"
-
 # NDWI (Gao-style using NIR and SWIR) = (NIR - SWIR) / (NIR + SWIR)
 ndwi <- (nir - swir) / (nir + swir)
 names(ndwi) <- "NDWI"
 
-veg_indices <- c(ndvi, evi, ndwi)
+# EVI can only be computed with a valid BLUE band.
+veg_indices <- c(ndvi, ndwi)
+if (!is.na(band_blue)) {
+  blue <- aviris_mask[[band_blue]]
+  names(blue) <- "blue"
+  evi <- 2.5 * (nir - red) / (nir + 6 * red - 7.5 * blue + 1)
+  names(evi) <- "EVI"
+  veg_indices <- c(veg_indices, evi)
+}
 
 # ---- Extract to points -------------------------------------------------------
 pts <- vect(points_file)
@@ -105,10 +111,10 @@ mesma_result <- mesma(
 # Write vegetation index stack to disk.
 writeRaster(
   veg_indices,
-  filename = "/absolute/path/to/output/vegetation_indices.tif",
+  filename = out_indices_tif,
   overwrite = TRUE
 )
 
 # Save point-level extracted values and MESMA outputs.
-write.csv(point_data, "/absolute/path/to/output/point_extractions.csv", row.names = FALSE)
-saveRDS(mesma_result, "/absolute/path/to/output/mesma_result.rds")
+write.csv(point_data, out_points_csv, row.names = FALSE)
+saveRDS(mesma_result, out_mesma_rds)
