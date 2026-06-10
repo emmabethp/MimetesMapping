@@ -63,7 +63,7 @@ index_at_points <- extract(veg_indices, pts)
 bands_at_points <- extract(c(nir, red, green, swir), pts)
 
 # Combine outputs (ID column comes from terra::extract)
-point_data <- merge(index_at_points, bands_at_points, by = "ID", suffixes = c("_idx", "_bands"))
+point_data <- merge(index_at_points, bands_at_points, by = "ID")
 
 # ---- MESMA analysis with luna -----------------------------------------------
 # Build a simple library matrix from extracted band values
