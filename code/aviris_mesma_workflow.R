@@ -45,7 +45,7 @@ names(swir) <- "swir"
 ndvi <- (nir - red) / (nir + red)
 names(ndvi) <- "NDVI"
 
-# EVI = 2.5 * (NIR - RED) / (NIR + 6*RED - 7.5*BLUE + 1)
+# EVI = 2.5 * (NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1)
 # If you have a blue band, substitute it below.
 # Using green here is demonstration-only and not scientifically equivalent to blue.
 evi <- 2.5 * (nir - red) / (nir + 6 * red - 7.5 * green + 1)
@@ -74,10 +74,14 @@ point_data <- merge(index_at_points, bands_at_points, by = "ID")
 spectral_library <- as.matrix(
   na.omit(spectra_at_points[, !names(spectra_at_points) %in% "ID", drop = FALSE])
 )
+if (nrow(spectral_library) < 1) {
+  stop("No valid spectra extracted for spectral library; provide endmember samples.")
+}
 
 # MESMA requires image spectra and candidate endmember spectra.
 # Convert the cropped raster to a matrix where rows are pixels and columns are bands.
 # For very large scenes this can be memory-intensive; consider tiled/chunked workflows.
+# Threshold is count of values (pixels x bands), not bytes.
 max_values_in_memory <- 5e7
 if ((ncell(aviris_mask) * nlyr(aviris_mask)) > max_values_in_memory) {
   stop("Scene is too large for full in-memory MESMA example; use a chunked workflow.")
