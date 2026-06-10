@@ -49,7 +49,7 @@ names(ndvi) <- "NDVI"
 # If you have a blue band, substitute it below.
 # Using green here is demonstration-only and not scientifically equivalent to blue.
 evi <- 2.5 * (nir - red) / (nir + 6 * red - 7.5 * green + 1)
-names(evi) <- "EVI"
+names(evi) <- "EVI_demo"
 
 # NDWI (Gao-style using NIR and SWIR) = (NIR - SWIR) / (NIR + SWIR)
 ndwi <- (nir - swir) / (nir + swir)
@@ -78,6 +78,10 @@ spectral_library <- as.matrix(
 # MESMA requires image spectra and candidate endmember spectra.
 # Convert the cropped raster to a matrix where rows are pixels and columns are bands.
 # For very large scenes this can be memory-intensive; consider tiled/chunked workflows.
+max_values_in_memory <- 5e7
+if ((ncell(aviris_mask) * nlyr(aviris_mask)) > max_values_in_memory) {
+  stop("Scene is too large for full in-memory MESMA example; use a chunked workflow.")
+}
 img_values <- values(aviris_mask, mat = TRUE)
 img_values <- img_values[complete.cases(img_values), , drop = FALSE]
 
@@ -90,6 +94,8 @@ mesma_result <- mesma(
   emlib = spectral_library,
   n = 2
 )
+# mesma_result typically contains model fit information (e.g., abundances/error),
+# but structure can vary by luna version; inspect with str(mesma_result).
 
 # ---- Optional outputs --------------------------------------------------------
 # Write vegetation index stack to disk.
