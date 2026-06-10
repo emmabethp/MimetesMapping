@@ -17,7 +17,8 @@ out_points_csv <- "/absolute/path/to/output/point_extractions.csv"
 out_mesma_rds <- "/absolute/path/to/output/mesma_result.rds"
 
 # Example AVIRIS-NG band choices. Update these to your wavelength-to-band mapping
-# from the AVIRIS-NG metadata/header for your specific scene.
+# from the AVIRIS-NG metadata/header for your specific scene
+# (e.g., NIR ~860 nm, RED ~660 nm, GREEN ~560 nm, SWIR ~1600 nm).
 band_nir <- 50L
 band_red <- 30L
 band_green <- 20L
@@ -87,8 +88,9 @@ if (nrow(spectral_library) < 1) {
 # MESMA requires image spectra and candidate endmember spectra.
 # Convert the cropped raster to a matrix where rows are pixels and columns are bands.
 # For very large scenes this can be memory-intensive; consider tiled/chunked workflows.
-# Threshold is count of values (pixels x bands), not bytes.
-# 5e7 values is ~400 MB as 8-byte numerics; tune this to your available RAM.
+# Threshold is total raster values (ncell x nlyr), not bytes directly.
+# Approximate memory for numeric storage is values x 8 bytes:
+# 5e7 values x 8 bytes = ~400 MB (decimal); tune to your available RAM.
 max_values_in_memory <- 5e7
 if ((ncell(aviris_mask) * nlyr(aviris_mask)) > max_values_in_memory) {
   stop("Scene is too large for full in-memory MESMA example; use a chunked workflow.")
