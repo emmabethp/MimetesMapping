@@ -1,0 +1,19 @@
+{
+"type": "FeatureCollection",
+"name": "mimetes_survivors",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:12:00Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.4534118, -34.1151417 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:14:00Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.4540587, -34.115524600000036 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:14:22Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.454115699999988, -34.115511600000012 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:15:27Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.454155199999974, -34.1151243 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:15:54Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.454217199999988, -34.115004399999975 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:27:11Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.457051299999989, -34.112690299999976 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:55:01Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.4596138, -34.111846 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:57:20Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.460012299999988, -34.111599899999959 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T09:58:55Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.4597176, -34.1113918 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T10:01:48Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.458878199999987, -34.11102970000001 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T10:02:31Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.459100400000011, -34.110992500000023 ] } },
+{ "type": "Feature", "properties": { "Name": "Mimetes", "Date...Time": "2026-06-17T10:03:40Z", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ 18.4587201, -34.1110202 ] } }
+]
+}

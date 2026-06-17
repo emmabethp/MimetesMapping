@@ -1,0 +1,122 @@
+---
+title: "Silvermine_analysis"
+author: "Timothy Muthama"
+output: html_document
+---
+
+## Loading packages
+
+```{r, include=FALSE}
+library(lidR)
+library(sf) 
+library(dbscan)
+library(mapview)
+library(tidyverse)
+```
+
+<https://r-lidar.github.io/lidRbook/> : This tutorial on the lidR package gives very useful explanations and demos on functions used in processing/analyzing point cloud data.
+
+## Preparing data
+
+```{r, include=FALSE}
+# Read in data
+las <- readLAS("data/silvermine.las") 
+st_crs(las) <- "EPSG:4326"
+
+# Filter out noise
+las <- classify_noise(las, sor())           
+las <- filter_poi(las, Classification != 18)
+
+# Normalize height
+norm <- normalize_height(las, tin())
+```
+
+## Grouping data into height classes
+
+```{r, include=FALSE}
+breaks <- c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10) # defining the breaks for the height classes
+
+
+norm@data$height_class <- cut(norm@data$Z, 
+                             breaks = breaks, 
+                             labels = NULL,
+                             right  = FALSE)
+
+# Summary of how many points fall in each class
+norm@data %>%
+  filter(Z > 0) %>%
+  count(height_class) %>%
+  mutate(pct = round(100 * n / sum(n), 1)) %>%
+  print()
+
+```
+
+### Plotting data
+
+```{r, include=TRUE}
+# Putting data in a dataframe
+pts <- as.data.frame(norm@data[, c("X", "Y", "Z", "height_class")])
+pts <- pts[!is.na(pts$height_class) & pts$Z > 0, ]
+
+
+ggplot(pts, aes(X, Y, colour = height_class)) +
+  geom_point(size = 0.1) +
+  scale_colour_viridis_d(name = "Height class") +
+  coord_equal() +
+  theme_dark() +
+  guides(colour = guide_legend(override.aes = list(size = 3))) +
+  labs(title = "Vegetation height classes", colour = "Height class")
+```
+
+## Clustering points
+
+```{r, include=FALSE}
+# Selecting desired heigh classes
+target_class <- c("[3,4)", "[4,5)", "[5,6)") # You can add more height classes to this, but the more ponts there are, the longer the clustering will take (or it will just crash)
+pts$highlight <- ifelse(pts$height_class %in% target_class, as.character(pts$height_class), "other")
+pts_target <- pts[pts$highlight != "other", c("X", "Y", "Z", "highlight")]
+
+# Clustering 
+db <- dbscan(pts_target[, c("X", "Y")], eps = 5, minPts = 5)
+pts_target$group <- db$cluster
+
+# Remove noise points (group == 0 in dbscan = no neighbours within eps)
+pts_target <- pts_target[pts_target$group > 0, ]
+
+# Get centroid and height summary for each group
+group_coords <- pts_target %>%
+  group_by(group, highlight) %>%
+  summarise(
+    X        = mean(X),
+    Y        = mean(Y),
+    Z_mean   = mean(Z),
+    Z_max    = max(Z),
+    n_points = n(),
+    .groups  = "drop"
+  ) %>%
+  filter(n_points >= 10) %>%
+  st_as_sf(coords = c("X", "Y"), crs = st_crs("ESRI:102562")) %>%
+  st_transform(crs = 4326) %>%
+  mutate(
+    lat = round(st_coordinates(geometry)[, 2], 6),
+    lon = round(st_coordinates(geometry)[, 1], 6)
+  ) %>%
+  st_drop_geometry() 
+```
+
+## Making an interactive map
+
+```{r, include=TRUE}
+group_sf <- st_as_sf(group_coords, coords = c("lon", "lat"), crs = 4326) %>%
+  mutate(lat = st_coordinates(geometry)[, 2],
+         lon = st_coordinates(geometry)[, 1])
+
+col <- c("#3D1FFF", "#1F71FF", "#AD1FFF") # , "#F0FF1F","#FF9E1F","#FF2E1F" )
+
+mapview(group_sf, 
+        zcol        = "highlight",    
+        cex         = "n_points",  
+        col.regions = col,
+        layer.name  = "Height class",
+        map.types   = "Esri.WorldImagery")
+```

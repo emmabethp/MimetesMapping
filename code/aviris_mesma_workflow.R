@@ -37,7 +37,12 @@ aviris <- rast(aviris_tif)
 aoi <- project(vect(aoi_geojson), crs(aviris))
 
 # Crop first for speed, then mask to AOI boundary.
-aviris_mask <- mask(crop(aviris, aoi), aoi, filename = "data/aviris_cropped.tif", overwrite = TRUE)
+aviris_mask <- mask( # Mask raster by area of interest (AOI) boundary
+  crop(aviris, aoi) # Crop to AOI before masking (more efficient apparently)
+  [[grep("reflectance",names(aviris_mask))]], # keep only reflectance bands for analysis (remove water vapour and aerosol bands); adjust if needed
+  aoi, # AOI - read in as a separate vector file
+  filename = "data/aviris_cropped.tif", # save masked raster to disk so R doesn't have to keep it in memory - more efficient
+  overwrite = TRUE) # allow overwriting existing file if one already exists
 
 # ---- Vegetation indices ------------------------------------------------------
 
@@ -75,8 +80,18 @@ plot(veg_indices, nc = 3)
 
 plot(evi, main = "EVI from AVIRIS")
 
+mapview::mapview(evi, alpha.regions = 0.35, map.types = "Esri.WorldImagery")
+
+hist(evi, main = "Histogram of EVI values", xlab = "EVI", breaks = 50)
+
+mapview::mapview(app(evi>0.3, as.integer), alpha.regions = 0.35, map.types = "Esri.WorldImagery")
+
+
 # ---- Extract to points -------------------------------------------------------
 pts <- project(vect(points_file), crs(aviris))
+
+mapview::viewRGB(raster::stack(c(red, green, blue)), r = 1, g = 2, b = 3) +
+  mapview::mapview(pts, label = pts$Name, cex = 5) # plot points on top of RGB image
 
 # Extract vegetation index values and selected AVIRIS bands to points.
 index_at_points <- terra::extract(veg_indices, pts) |>
@@ -90,11 +105,17 @@ spectra_at_points <- terra::extract(aviris_mask, pts) |>
   na.omit()
 
 # Plot spectral library
+spectra_at_points |> filter(EndMember == "shrub") |>
+  select(starts_with("reflectance")) |> 
+  t() |>
+  matplot(type = "l", col = rainbow(20), lty = 1,
+        xlab = "Band", ylab = "Reflectance", main = "Spectral library of Silvermine Endmembers")
+
 spectra_at_points |>
   group_by(EndMember, ID) |>
   pivot_longer(cols = starts_with("reflectance"), names_to = "Band", values_to = "Reflectance") |>
   mutate(Band = parse_number(str_split_i(Band, "=", 2))) |>
-  ggplot(aes(x = Band, y = Reflectance, group = ID, color = EndMember)) +
+  ggplot(aes(x = Band, y = Reflectance, group = ID, color = ID)) +
   geom_line(alpha = 0.3) +
   stat_summary(aes(group = EndMember), fun = mean, geom = "line", linewidth = 1) +
   annotate(geom = "rect", xmin = 1350, xmax =  1420 , ymin = -Inf, ymax = Inf, 
@@ -113,25 +134,33 @@ spectra_at_points |>
   pivot_longer(cols = starts_with("reflectance"), names_to = "Band", values_to = "Reflectance") |>
   group_by(EndMember, Band) |>
   summarise(mean_reflectance = mean(Reflectance, na.rm = TRUE)) |>
-  pivot_wider(names_from = Band, values_from = mean_reflectance)
+  pivot_wider(names_from = Band, values_from = mean_reflectance) |>
+  column_to_rownames(var = "EndMember") ->
+  spectral_library
+  
+spectral_library |>
+  t() |>
+  matplot(type = "l", col = rainbow(20), lty = 1,
+          xlab = "Band", ylab = "Reflectance", main = "Spectral library of Silvermine Endmembers")
 
-# Combine outputs (ID column comes from terra::extract)
-point_data <- merge(index_at_points, bands_at_points, by = "ID")
+spectra_at_points[c(1,6,11,16),] |>
+  remove_rownames() |>
+  column_to_rownames(var = "EndMember") |>
+  select(starts_with("reflectance")) -> spectral_library
+
+# # Combine outputs (ID column comes from terra::extract)
+# point_data <- merge(index_at_points, bands_at_points, by = "ID")
 
 # ---- MESMA analysis with luna -----------------------------------------------
 # Build a spectral library matrix from extracted full spectra at points
 # (rows = samples, columns = AVIRIS bands). Replace with known endmembers as needed.
-spectral_library <- as.matrix(
-  na.omit(spectra_at_points[, !names(spectra_at_points) %in% "ID", drop = FALSE])
-)
-if (nrow(spectral_library) < 1) {
-  stop("No valid spectra extracted for spectral library; provide endmember samples.")
-}
+# spectral_library <- as.matrix(
+#   na.omit(spectra_at_points[, !names(spectra_at_points) %in% "ID", drop = FALSE])
+# )
+# if (nrow(spectral_library) < 1) {
+#   stop("No valid spectra extracted for spectral library; provide endmember samples.")
+# }
 
-
-
-matplot(t(spectral_library), type = "l", lty = 1, col = rainbow(nrow(spectral_library)),
-        xlab = "Band Index", ylab = "Reflectance", main = "Spectral Library from Sample Points")
 
 # MESMA requires image spectra and candidate endmember spectra.
 # Convert the cropped raster to a matrix where rows are pixels and columns are bands.
@@ -143,19 +172,22 @@ max_values_in_memory <- 5e7
 if ((ncell(aviris_mask) * nlyr(aviris_mask)) > max_values_in_memory) {
   stop("Scene is too large for full in-memory MESMA example; use a chunked workflow.")
 }
-img_values <- values(aviris_mask, mat = TRUE)
-img_values <- img_values[complete.cases(img_values), , drop = FALSE]
+#img_values <- values(aviris_mask, mat = TRUE)
+#img_values <- img_values[complete.cases(img_values), , drop = FALSE]
 
 # Example MESMA call. Adjust arguments to your luna version/data:
 # - image: matrix of pixel spectra
 # - emlib: matrix of endmember spectra
 # - n: number of endmembers in each model (set based on expected material mixing)
 #   (2 is a simple default; increase when pixels are expected to mix more materials)
-mesma_result <- mesma(
-  image = img_values,
-  emlib = spectral_library,
-  n = 2
-)
+mesma_result <- mesma(aviris_mask, em = spectral_library[,], iterate = 400)
+
+mesma_result
+
+plot(mesma_result)
+
+mapview::mapview(mesma_result$shrub, alpha.regions = 0.35, map.types = "Esri.WorldImagery")
+
 # mesma_result typically contains model fit information (e.g., abundances/error),
 # but structure can vary by luna version; inspect with str(mesma_result).
 
